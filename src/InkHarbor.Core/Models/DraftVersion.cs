@@ -1,7 +1,7 @@
 namespace InkHarbor.Core.Models;
 
 /// <summary>
-/// 一个版本的文件记录。所有版本文件一经写入就不再修改，回退靠"复制成新版本"实现。
+/// 一个版本的文件记录。所有版本文件一经写入就不再修改，回退靠“复制成新版本”实现。
 /// </summary>
 public sealed class DraftVersion
 {
@@ -23,6 +23,12 @@ public sealed class DraftVersion
     /// <summary>字数（非空白字符数）。</summary>
     public int WordCount { get; set; }
 
-    /// <summary>备注，M2 用来记修订指令。</summary>
+    /// <summary>备注，回退版本会写成“回退自 v2”这类。</summary>
     public string Note { get; set; } = "";
+
+    /// <summary>AI 修订时用的那条指令；生成和手动编辑产生的版本为空。</summary>
+    public string Instruction { get; set; } = "";
+
+    /// <summary>这一版是回退来的，记来源版本号；不是回退就是 null。老 meta.json 里没有这个字段，读出来即 null。</summary>
+    public int? FromVersion { get; set; }
 }

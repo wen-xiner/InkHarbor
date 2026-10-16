@@ -152,8 +152,20 @@
                 <Grid Grid.Column="1">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" MinHeight="110" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition>
+                            <RowDefinition.Style>
+                                <Style TargetType="RowDefinition">
+                                    <Setter Property="Height" Value="340" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsEditPanelOpen}" Value="False">
+                                            <Setter Property="Height" Value="0" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </RowDefinition.Style>
+                        </RowDefinition>
                     </Grid.RowDefinitions>
 
                     <!-- 组稿区 -->
@@ -264,60 +276,236 @@
                                  HorizontalScrollBarVisibility="Disabled" />
                     </Grid>
 
+                    <!-- 修改区上方的拖拽条：上下拉可以调整修改区高度 -->
+                    <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch"
+                                  ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                                  Background="{StaticResource BorderTertiary}"
+                                  Visibility="{Binding IsEditPanelOpen, Converter={StaticResource BoolToVis}}" />
+
                     <!-- 修改区 -->
-                    <Border Grid.Row="2" Padding="14,10"
+                    <Border Grid.Row="3" Padding="14,10"
                             Background="{StaticResource BgSecondary}"
                             BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0,0.5,0,0"
                             Visibility="{Binding IsEditPanelOpen, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-                            <TabControl IsEnabled="{Binding HasDraft}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
+                            <TabControl Grid.Row="0" IsEnabled="{Binding HasDraft}">
+
+                                <!-- ========== 手动编辑 ========== -->
                                 <TabItem Header="手动编辑">
-                                    <StackPanel Margin="0,8,0,0">
-                                        <TextBox Height="118" FontSize="13"
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <TextBox Grid.Row="0" FontSize="13" MinHeight="80"
                                                  Text="{Binding EditingText, UpdateSourceTrigger=PropertyChanged}"
                                                  AcceptsReturn="True" TextWrapping="Wrap"
                                                  VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
                                                  HorizontalScrollBarVisibility="Disabled" />
-                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
                                             <Button Content="保存为新版本" Command="{Binding SaveVersionCommand}" />
                                             <TextBlock Text="每存一次生成 v2、v3…，老版本文件永不覆盖。"
                                                        FontSize="11" Foreground="{StaticResource TextTertiary}"
                                                        VerticalAlignment="Center" />
                                         </StackPanel>
-                                    </StackPanel>
+                                    </Grid>
                                 </TabItem>
 
-                                <TabItem Header="AI 修订" IsEnabled="False">
-                                    <StackPanel Margin="0,8,0,0">
-                                        <TextBox Height="34" FontSize="12" IsEnabled="False"
-                                                 Text="比如「第二段压短，节奏加快」" />
-                                        <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
-                                                   TextWrapping="Wrap" Margin="0,8,0,0"
-                                                   Text="M2 开放：对照显示、采纳制。本期按方案保留入口但不启用。" />
-                                    </StackPanel>
+                                <!-- ========== AI 修订 ========== -->
+                                <TabItem Header="AI 修订">
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" MinHeight="70" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- 指令 -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Grid.Column="0" FontSize="12" Height="30"
+                                                     Text="{Binding ReviseInstruction, UpdateSourceTrigger=PropertyChanged}" />
+                                            <CheckBox Grid.Column="1" Margin="10,0,0,0" FontSize="11"
+                                                      VerticalAlignment="Center"
+                                                      IsChecked="{Binding UseCorpusForRevision, Mode=TwoWay}"
+                                                      Content="带上范文一起改（文风更稳）" />
+                                        </Grid>
+
+                                        <!-- 动作 -->
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Button Content="让模型改一版" Command="{Binding ReviseCommand}" />
+                                            <Button Content="让模型自查一版" Command="{Binding SelfCheckCommand}" />
+                                            <Button Content="终止"
+                                                    Command="{Binding CancelReviseCommand}"
+                                                    Visibility="{Binding IsRevising, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+
+                                        <!-- 对照：左＝编辑框里的稿，右＝修订稿（还没落盘） -->
+                                        <Grid Grid.Row="2" Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Grid.Column="0">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="原稿（编辑框里的内容）" FontSize="11"
+                                                           Foreground="{StaticResource TextTertiary}"
+                                                           Margin="0,0,0,4" />
+                                                <TextBox Grid.Row="1" FontSize="12" IsReadOnly="True"
+                                                         Background="{StaticResource BgTertiary}"
+                                                         Text="{Binding EditingText, Mode=OneWay}"
+                                                         AcceptsReturn="True" TextWrapping="Wrap"
+                                                         VerticalContentAlignment="Top"
+                                                         VerticalScrollBarVisibility="Auto"
+                                                         HorizontalScrollBarVisibility="Disabled" />
+                                            </Grid>
+
+                                            <Grid Grid.Column="2">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="修订稿（满意才落盘）" FontSize="11"
+                                                           Foreground="{StaticResource TextTertiary}"
+                                                           Margin="0,0,0,4" />
+                                                <TextBox Grid.Row="1" FontSize="12" IsReadOnly="True"
+                                                         Text="{Binding RevisionText, Mode=OneWay}"
+                                                         AcceptsReturn="True" TextWrapping="Wrap"
+                                                         VerticalContentAlignment="Top"
+                                                         VerticalScrollBarVisibility="Auto"
+                                                         HorizontalScrollBarVisibility="Disabled" />
+                                            </Grid>
+                                        </Grid>
+
+                                        <!-- 字数对比 + 提醒 + 采纳 -->
+                                        <StackPanel Grid.Row="3" Margin="0,8,0,0">
+                                            <TextBlock Text="{Binding RevisionSummary}" FontSize="11"
+                                                       Foreground="{StaticResource TextSecondary}"
+                                                       TextWrapping="Wrap" />
+
+                                            <TextBlock Text="{Binding RevisionWarning}" FontSize="11"
+                                                       Foreground="{StaticResource DangerBrush}"
+                                                       TextWrapping="Wrap" Margin="0,4,0,0"
+                                                       Visibility="{Binding HasRevisionWarning, Converter={StaticResource BoolToVis}}" />
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                <Button Content="✓ 采纳这一版（落成新版本）"
+                                                        Command="{Binding AdoptRevisionCommand}"
+                                                        Background="{StaticResource OkBg}"
+                                                        Foreground="{StaticResource OkFg}"
+                                                        BorderBrush="{StaticResource OkBrush}" />
+                                                <Button Content="丢弃修订稿"
+                                                        Command="{Binding DiscardRevisionCommand}"
+                                                        Foreground="{StaticResource DangerBrush}" />
+                                                <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                                           VerticalAlignment="Center" TextWrapping="Wrap"
+                                                           Text="不点采纳就不落盘；采纳后原版本一个不动。" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
                                 </TabItem>
 
-                                <TabItem Header="版本历史" IsEnabled="False">
-                                    <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
-                                               TextWrapping="Wrap" Margin="0,8,0,0"
-                                               Text="M2 开放：版本回退。回退＝把旧版本复制成新副本，历史一律不删。" />
+                                <!-- ========== 版本历史 ========== -->
+                                <TabItem Header="版本历史">
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="300" MinWidth="200" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <ListBox Grid.Column="0" ItemsSource="{Binding Versions}"
+                                                 SelectedItem="{Binding SelectedVersion, Mode=TwoWay}">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{StaticResource BgPrimary}"
+                                                            BorderBrush="{StaticResource BorderTertiary}"
+                                                            BorderThickness="0.5"
+                                                            CornerRadius="8" Padding="9,7">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Grid.Column="0" Width="{Binding AccentWidth}"
+                                                                    Background="{Binding AccentBrush}"
+                                                                    CornerRadius="2" Margin="0,1,8,1" />
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock Text="{Binding DisplayTitle}"
+                                                                           FontWeight="SemiBold" FontSize="12" />
+                                                                <TextBlock Text="{Binding MetaLine}" FontSize="11"
+                                                                           Foreground="{StaticResource TextTertiary}"
+                                                                           Margin="0,2,0,0" />
+                                                                <TextBlock Text="{Binding DetailLine}" FontSize="11"
+                                                                           Foreground="{StaticResource TextTertiary}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+
+                                        <Grid Grid.Column="2">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="*" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0" Text="{Binding RevertHintText}" FontSize="11"
+                                                       Foreground="{StaticResource TextTertiary}"
+                                                       TextWrapping="Wrap" Margin="0,0,0,6" />
+
+                                            <TextBox Grid.Row="1" FontSize="12" IsReadOnly="True"
+                                                     Background="{StaticResource BgTertiary}"
+                                                     Text="{Binding VersionPreviewText, Mode=OneWay}"
+                                                     AcceptsReturn="True" TextWrapping="Wrap"
+                                                     VerticalContentAlignment="Top"
+                                                     VerticalScrollBarVisibility="Auto"
+                                                     HorizontalScrollBarVisibility="Disabled" />
+
+                                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                                                <Button Content="↩ 回退到这个版本"
+                                                        Command="{Binding RevertVersionCommand}" />
+                                                <TextBlock Text="回退＝复制成新版本，历史一律不删。"
+                                                           FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
                                 </TabItem>
 
                             </TabControl>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
                                 <Button Content="✓ 确认，存入终稿" Command="{Binding ConfirmFinalCommand}"
                                         Background="{StaticResource OkBg}" Foreground="{StaticResource OkFg}"
                                         BorderBrush="{StaticResource OkBrush}" />
                                 <Button Content="放弃本轮修改" Command="{Binding DiscardCommand}"
                                         Foreground="{StaticResource DangerBrush}" />
+                                <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                           VerticalAlignment="Center" TextWrapping="Wrap"
+                                           Text="底稿 v1 只读；编辑与 AI 修订都在副本上落新版本，final\ 软件不提供删除入口。" />
                             </StackPanel>
-
-                            <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
-                                       TextWrapping="Wrap" Margin="0,8,0,0" LineHeight="17"
-                                       Text="底稿 v1 只读、永不覆盖；编辑只在副本上改。final\ 封存后软件不提供删除入口，要再改就复制出新底稿。" />
-                        </StackPanel>
+                        </Grid>
                     </Border>
 
                 </Grid>

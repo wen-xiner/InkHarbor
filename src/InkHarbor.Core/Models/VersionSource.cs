@@ -1,16 +1,19 @@
 namespace InkHarbor.Core.Models;
 
 /// <summary>
-/// 版本来源。M1 只会产生 generate / manual；ai 给 M2 的 AI 修订预留，先在这里占位。
+/// 版本来源，决定版本历史里那一条显示成什么。
 /// </summary>
 public static class VersionSource
 {
     /// <summary>模型生成，即 v1。</summary>
     public const string Generate = "generate";
 
-    /// <summary>用户手动编辑保存。</summary>
+    /// <summary>用户在编辑框里手动改完保存。</summary>
     public const string Manual = "manual";
 
-    /// <summary>AI 修订采纳后保存（M2 用，M1 不产生）。</summary>
+    /// <summary>AI 修订采纳后保存。</summary>
     public const string Ai = "ai";
+
+    /// <summary>回退到旧版本：把旧版本内容复制成的新版本（旧版本文件不动）。</summary>
+    public const string Revert = "revert";
 }

@@ -117,7 +117,9 @@ public sealed class DraftService
         string text,
         string source,
         string note = "",
-        string? model = null)
+        string? model = null,
+        string instruction = "",
+        int? fromVersion = null)
     {
         var dir = DraftDir(meta.Title);
         var next = meta.CurrentVersion + 1;
@@ -134,7 +136,9 @@ public sealed class DraftService
             CreatedAt = now,
             Model = model ?? meta.Model,
             WordCount = TextMetrics.CountWords(text),
-            Note = note
+            Note = note,
+            Instruction = instruction,
+            FromVersion = fromVersion
         });
 
         meta.CurrentVersion = next;
@@ -145,8 +149,37 @@ public sealed class DraftService
     }
 
     /// <summary>
-    /// 确认入终稿：把文本复制进 final\，同名加序号，原终稿永不覆盖。
+    /// 回退到某个旧版本：把那一版的内容**复制成新版本**落盘，当前版本前进一位。
+    /// 旧版本文件一个都不删——「误改可回退」就是靠这个实现的：回退也是一次前进。
     /// </summary>
+    public DraftMeta RevertToVersion(DraftMeta meta, int targetVersion)
+    {
+        var target = meta.Versions.FirstOrDefault(v => v.Version == targetVersion)
+            ?? throw new InvalidOperationException($"《{meta.Title}》里没有 v{targetVersion}。");
+
+        if (targetVersion == meta.CurrentVersion)
+        {
+            throw new InvalidOperationException($"v{targetVersion} 本来就是当前版本，不用回退。");
+        }
+
+        var text = LoadVersionText(meta.Title, targetVersion);
+        if (string.IsNullOrEmpty(text))
+        {
+            throw new InvalidOperationException(
+                $"v{target.Version} 的正文文件读不到：{VersionPath(meta.Title, targetVersion)}");
+        }
+
+        return AddVersion(
+            meta,
+            text,
+            VersionSource.Revert,
+            $"回退自 v{targetVersion}",
+            meta.Model,
+            instruction: "",
+            fromVersion: targetVersion);
+    }
+
+    /// <summary>确认入终稿：把文本复制进 final\，同名加序号，原终稿永不覆盖。</summary>
     public string SaveAsFinal(DraftMeta meta, string text)
     {
         var target = MakeUniqueFilePath(_ws.FinalDir, WorkspaceService.SanitizeTitle(meta.Title), ".md");
