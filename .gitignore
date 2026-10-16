@@ -1,0 +1,30 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+## 本机构建产物
+publish/
+*.exe
+
+## 临时搭建目录（装机包、冒烟测试工程）
+_setup/
+
+## 数据目录里的正文不进库（范文/底稿/终稿是自己的东西，按需再决定要不要传）
+corpus/*.md
+corpus/*.txt
+drafts/
+final/
+presets/*.json
+
+## AI 协作笔记（.workbuddy 是本机工作记录，不进库）
+.workbuddy/
+
+## 系统/编辑器残留
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
+

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>InkHarbor 界面设计图</title>
+<style>
+  :root {
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #555;
+    --color-text-tertiary: #888;
+    --color-border-tertiary: rgba(0,0,0,0.15);
+    --color-border-secondary: rgba(0,0,0,0.3);
+    --color-border-info: #378ADD;
+    --color-background-primary: #ffffff;
+    --color-background-secondary: #f7f6f3;
+    --color-background-tertiary: #f1efe8;
+    --font-sans: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  body { margin: 0; padding: 24px; background: #fafafa; font-family: var(--font-sans); }
+  h1 { font-size: 15px; font-weight: 500; margin: 0 0 4px; }
+  .cap { font-size: 12px; color: var(--color-text-tertiary); margin: 0 0 16px; }
+  input, select, textarea, button { font-family: inherit; }
+  input, select, textarea { border: 0.5px solid var(--color-border-secondary); border-radius: 6px; padding: 5px 8px; background: #fff; }
+  button { border: 0.5px solid var(--color-border-secondary); border-radius: 6px; padding: 5px 12px; background: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>InkHarbor 桌面端界面设计 · 定稿</h1>
+<p class="cap">生产行线：挑范文 → 配方确认 → 写大纲 → 生成 → 自动存底稿 → 展开修改 → 确认入终稿</p>
+
+<div style="color: var(--color-text-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 12px; overflow: hidden; background: var(--color-background-primary);">
+
+  <div style="display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:0.5px solid var(--color-border-tertiary); background:var(--color-background-secondary);">
+    <strong style="font-size:14px;">InkHarbor</strong>
+    <span style="font-size:12px; color:var(--color-text-secondary);">文风模式</span>
+    <select style="font-size:12px;"><option>qwen3-4b-古风</option><option>qwen3-4b-冷幽默</option></select>
+    <span style="margin-left:auto; font-size:12px; color:#0F6E56;">Ollama ● 已连接</span>
+  </div>
+
+  <div style="display:flex;">
+
+    <div style="width:190px; flex-shrink:0; border-right:0.5px solid var(--color-border-tertiary); background:var(--color-background-tertiary);">
+      <div style="display:flex;">
+        <div style="flex:1; text-align:center; padding:8px 0; font-size:12px; font-weight:500; border-bottom:2px solid var(--color-border-info); background:var(--color-background-primary);">作品</div>
+        <div style="flex:1; text-align:center; padding:8px 0; font-size:12px; color:var(--color-text-secondary); border-bottom:0.5px solid var(--color-border-tertiary);">范文库</div>
+      </div>
+      <div style="padding:10px;">
+        <div style="border:0.5px solid var(--color-border-secondary); border-radius:8px; padding:8px 10px; margin-bottom:6px; background:var(--color-background-primary);">
+          <p style="font-size:12px; font-weight:500; margin:0;">雨夜当铺 v3</p>
+          <p style="font-size:11px; color:var(--color-text-tertiary); margin:0;">修改中 · 刚刚</p>
+        </div>
+        <div style="border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+          <p style="font-size:12px; margin:0;">巷口面摊 v1</p>
+          <p style="font-size:11px; color:#0F6E56; margin:0;">● 已入终稿</p>
+        </div>
+        <div style="border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:8px 10px;">
+          <p style="font-size:12px; margin:0;">旧车站 v2</p>
+          <p style="font-size:11px; color:var(--color-text-tertiary); margin:0;">底稿 · 昨天</p>
+        </div>
+        <p style="font-size:11px; color:var(--color-text-tertiary); margin:10px 0 0; line-height:1.6;">范文库 Tab：浏览 corpus 文件夹、<br>勾选范文 → 进右侧配方条。<br>点卡片弹整篇预览。</p>
+      </div>
+    </div>
+
+    <div style="flex:1; min-width:0;">
+
+      <div style="padding:10px 14px; border-bottom:0.5px solid var(--color-border-tertiary);">
+        <p style="font-size:12px; color:var(--color-text-secondary); margin:0 0 6px;">本次配方（已选 2 篇 · 约 3800 token）</p>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <span style="font-size:11px; background:#E6F1FB; color:#0C447C; border:0.5px solid #185FA5; border-radius:99px; padding:3px 10px;">雨夜当铺 ×</span>
+          <span style="font-size:11px; background:#E6F1FB; color:#0C447C; border:0.5px solid #185FA5; border-radius:99px; padding:3px 10px;">旧车站 ×</span>
+          <button style="font-size:11px; border-radius:99px; padding:3px 10px;">+ 存为预设</button>
+          <button style="font-size:11px; border-radius:99px; padding:3px 10px; color:var(--color-text-tertiary);">按大纲自动推荐（M3）</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px; align-items:flex-start;">
+          <textarea style="flex:1; font-size:12px; min-height:44px; box-sizing:border-box;" placeholder="情节大纲：谁、在哪、发生什么、情绪基调、目标字数"></textarea>
+          <button style="font-size:12px; align-self:stretch;">生成 ↗</button>
+        </div>
+      </div>
+
+      <div style="padding:12px 14px; border-bottom:0.5px solid var(--color-border-tertiary);">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <p style="font-size:13px; font-weight:500; margin:0;">生成输出</p>
+          <span style="font-size:11px; color:var(--color-text-tertiary);">底稿已自动保存 · 不可覆盖</span>
+          <button style="margin-left:auto; font-size:12px;">展开修改 ▾</button>
+        </div>
+        <div style="border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:10px 12px; background:var(--color-background-primary);">
+          <p style="font-size:13px; line-height:1.7; margin:0;">雨夜当铺　雨下到第三天，当铺的灯就没熄过。老板娘数着柜上的铜钱，听见门口的动静，头也不抬地说：「死当不收，活当口算利。」来人抖开伞，伞骨上还挂着水……</p>
+        </div>
+      </div>
+
+      <div style="padding:12px 14px; background:var(--color-background-secondary);">
+        <div style="display:flex; gap:8px; margin-bottom:10px;">
+          <button style="font-size:12px; border:2px solid var(--color-border-info);">手动编辑</button>
+          <button style="font-size:12px;">AI 修订</button>
+          <button style="font-size:12px;">版本历史</button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <input style="flex:1; font-size:12px;" placeholder="让模型怎么改：比如「第二段压短，节奏加快」">
+          <button style="font-size:12px;">送模型 ↗</button>
+        </div>
+        <p style="font-size:11px; color:var(--color-text-tertiary); margin:8px 0 0;">AI 修订结果对照显示，采纳才生效；每次修订自动存 v2、v3…可回退</p>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button style="font-size:12px; background:#E1F5EE; color:#085041; border-color:#0F6E56;">✓ 确认，存入终稿</button>
+          <button style="font-size:12px; color:#A32D2D;">放弃本轮修改</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<p class="cap" style="margin-top:16px;">状态标颜色：底稿=灰 / 修改中=蓝（高亮边框）/ 已入终稿=绿。生成输出窗格永远只读；修改只在副本上进行。</p>
+</body>
+</html>

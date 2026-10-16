@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>InkHarbor</AssemblyName>
+    <RootNamespace>InkHarbor.App</RootNamespace>
+    <Product>InkHarbor</Product>
+    <AssemblyTitle>InkHarbor · 墨坞</AssemblyTitle>
+    <Version>0.1.0</Version>
+    <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\InkHarbor.Core\InkHarbor.Core.csproj" />
+  </ItemGroup>
+
+</Project>

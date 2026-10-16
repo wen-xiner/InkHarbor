@@ -1,0 +1,336 @@
+﻿<Window x:Class="InkHarbor.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:InkHarbor.App.ViewModels"
+        Title="InkHarbor · 墨坞" Height="860" Width="1260" MinHeight="660" MinWidth="1060"
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA" FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="13"
+        Foreground="{StaticResource TextPrimary}"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= 顶栏 ================= -->
+        <Border Grid.Row="0" Background="{StaticResource BgSecondary}"
+                BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0.5"
+                CornerRadius="12,12,0,0" Padding="16,10">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="InkHarbor" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="文风模式" Margin="20,0,8,0" Foreground="{StaticResource TextSecondary}"
+                               VerticalAlignment="Center" FontSize="12" />
+                    <ComboBox ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}"
+                              Width="190" FontSize="12" />
+                    <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                </StackPanel>
+
+                <TextBlock Text="{Binding OllamaStatusText}" HorizontalAlignment="Right"
+                           VerticalAlignment="Center" FontSize="12">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource TextTertiary}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsOllamaConnected}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </Border>
+
+        <!-- ================= 主体 ================= -->
+        <Border Grid.Row="1" Background="{StaticResource BgPrimary}"
+                BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0.5,0,0.5,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="196" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 左栏双 Tab -->
+                <Border Grid.Column="0" Background="{StaticResource BgTertiary}"
+                        BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0,0,0.5,0">
+                    <TabControl Margin="8,6,8,8">
+
+                        <TabItem Header="作品">
+                            <Grid Margin="0,8,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <ListBox x:Name="DraftList" ItemsSource="{Binding DraftItems}"
+                                         SelectedItem="{Binding SelectedDraft, Mode=TwoWay}"
+                                         SelectionChanged="DraftList_SelectionChanged">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource BgPrimary}"
+                                                    BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0.5"
+                                                    CornerRadius="8" Padding="9,7">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Grid.Column="0" Width="{Binding AccentWidth}"
+                                                            Background="{Binding AccentBrush}" CornerRadius="2"
+                                                            Margin="0,1,8,1" />
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold"
+                                                                   FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding StatusLine}" FontSize="11"
+                                                                   Foreground="{Binding StatusBrush}" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock Grid.Row="1" FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                           TextWrapping="Wrap" LineHeight="17" Margin="0,10,0,0"
+                                           Text="底稿=灰 / 修改中=蓝 / 已入终稿=绿。点一条打开它。" />
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="范文库">
+                            <Grid Margin="0,8,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <ListBox x:Name="CorpusList" ItemsSource="{Binding CorpusItems}"
+                                         MouseDoubleClick="CorpusList_MouseDoubleClick">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource BgPrimary}"
+                                                    BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0.5"
+                                                    CornerRadius="8" Padding="8,6">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                              VerticalAlignment="Top" Margin="0,2,7,0" />
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding TagText}" FontSize="11"
+                                                                   Foreground="{StaticResource TextTertiary}"
+                                                                   TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                                        <TextBlock Text="{Binding MetaText}" FontSize="11"
+                                                                   Foreground="{StaticResource TextTertiary}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock Grid.Row="1" FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                           TextWrapping="Wrap" LineHeight="17" Margin="0,10,0,0"
+                                           Text="勾选进右侧配方条；双击看整篇预览。" />
+                            </Grid>
+                        </TabItem>
+
+                    </TabControl>
+                </Border>
+
+                <!-- 右栏 -->
+                <Grid Grid.Column="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 组稿区 -->
+                    <Border Grid.Row="0" Padding="14,10"
+                            BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0,0,0,0.5">
+                        <StackPanel>
+                            <TextBlock Text="{Binding RecipeSummary}" Foreground="{StaticResource TextSecondary}"
+                                       FontSize="12" />
+
+                            <ItemsControl ItemsSource="{Binding Recipe}" Margin="0,6,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource ChipBg}"
+                                                BorderBrush="{StaticResource ChipBorder}" BorderThickness="0.5"
+                                                CornerRadius="99" Padding="10,3" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding DisplayName}" FontSize="11"
+                                                           Foreground="{StaticResource ChipFg}"
+                                                           VerticalAlignment="Center" />
+                                                <Button Content="×" Style="{StaticResource GhostButton}"
+                                                        Command="{Binding DataContext.RemoveChipCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" Margin="6,0,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Button Content="+ 存为预设" Command="{Binding SavePresetCommand}" />
+                                <Button Content="按大纲自动推荐（M3）" IsEnabled="False" />
+                            </StackPanel>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="标题" FontSize="12"
+                                                   Foreground="{StaticResource TextSecondary}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <TextBox Grid.Column="1" FontSize="12"
+                                                 Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" />
+                                    </Grid>
+
+                                    <TextBox Margin="0,6,0,0" Height="64" FontSize="12"
+                                             AcceptsReturn="True" TextWrapping="Wrap"
+                                             VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
+                                             Text="{Binding Outline, UpdateSourceTrigger=PropertyChanged}" />
+
+                                    <TextBlock Text="{Binding TargetWordsHint}" FontSize="11"
+                                               Foreground="{StaticResource TextTertiary}"
+                                               TextWrapping="Wrap" Margin="0,4,0,0" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Top">
+                                    <Button Content="生成 ↗" Command="{Binding GenerateCommand}"
+                                            Padding="18,6" />
+                                    <Button Content="终止" Command="{Binding CancelGenerateCommand}"
+                                            Visibility="{Binding IsGenerating, Converter={StaticResource BoolToVis}}"
+                                            Margin="0,6,6,0" />
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="{Binding RecipeWarning}" FontSize="11"
+                                       Foreground="{StaticResource DangerBrush}"
+                                       Visibility="{Binding HasRecipeWarning, Converter={StaticResource BoolToVis}}"
+                                       TextWrapping="Wrap" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 成品区：生成输出 -->
+                    <Grid Grid.Row="1" Margin="14,10,14,10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="生成输出" FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding DraftLabel}" FontSize="11"
+                                           Foreground="{StaticResource TextTertiary}"
+                                           Margin="10,0,0,0" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="420" />
+                            </StackPanel>
+                            <Button Content="{Binding EditPanelToggleText}" HorizontalAlignment="Right"
+                                    Command="{Binding ToggleEditPanelCommand}" />
+                        </Grid>
+
+                        <TextBox x:Name="OutputBox" Grid.Row="1" FontSize="13" Padding="10"
+                                 Text="{Binding OutputText, Mode=OneWay}"
+                                 IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Disabled" />
+                    </Grid>
+
+                    <!-- 修改区 -->
+                    <Border Grid.Row="2" Padding="14,10"
+                            Background="{StaticResource BgSecondary}"
+                            BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0,0.5,0,0"
+                            Visibility="{Binding IsEditPanelOpen, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TabControl IsEnabled="{Binding HasDraft}">
+
+                                <TabItem Header="手动编辑">
+                                    <StackPanel Margin="0,8,0,0">
+                                        <TextBox Height="118" FontSize="13"
+                                                 Text="{Binding EditingText, UpdateSourceTrigger=PropertyChanged}"
+                                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                                 VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
+                                                 HorizontalScrollBarVisibility="Disabled" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Button Content="保存为新版本" Command="{Binding SaveVersionCommand}" />
+                                            <TextBlock Text="每存一次生成 v2、v3…，老版本文件永不覆盖。"
+                                                       FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </TabItem>
+
+                                <TabItem Header="AI 修订" IsEnabled="False">
+                                    <StackPanel Margin="0,8,0,0">
+                                        <TextBox Height="34" FontSize="12" IsEnabled="False"
+                                                 Text="比如「第二段压短，节奏加快」" />
+                                        <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                                   TextWrapping="Wrap" Margin="0,8,0,0"
+                                                   Text="M2 开放：对照显示、采纳制。本期按方案保留入口但不启用。" />
+                                    </StackPanel>
+                                </TabItem>
+
+                                <TabItem Header="版本历史" IsEnabled="False">
+                                    <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                               TextWrapping="Wrap" Margin="0,8,0,0"
+                                               Text="M2 开放：版本回退。回退＝把旧版本复制成新副本，历史一律不删。" />
+                                </TabItem>
+
+                            </TabControl>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Content="✓ 确认，存入终稿" Command="{Binding ConfirmFinalCommand}"
+                                        Background="{StaticResource OkBg}" Foreground="{StaticResource OkFg}"
+                                        BorderBrush="{StaticResource OkBrush}" />
+                                <Button Content="放弃本轮修改" Command="{Binding DiscardCommand}"
+                                        Foreground="{StaticResource DangerBrush}" />
+                            </StackPanel>
+
+                            <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                       TextWrapping="Wrap" Margin="0,8,0,0" LineHeight="17"
+                                       Text="底稿 v1 只读、永不覆盖；编辑只在副本上改。final\ 封存后软件不提供删除入口，要再改就复制出新底稿。" />
+                        </StackPanel>
+                    </Border>
+
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- ================= 状态栏 ================= -->
+        <Border Grid.Row="2" Background="{StaticResource BgSecondary}"
+                BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0.5"
+                CornerRadius="0,0,12,12" Padding="16,6">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="11"
+                       Foreground="{StaticResource TextTertiary}"
+                       TextTrimming="CharacterEllipsis" />
+        </Border>
+    </Grid>
+</Window>
