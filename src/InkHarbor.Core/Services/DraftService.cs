@@ -195,6 +195,71 @@ public sealed class DraftService
     /// <summary>放弃本轮修改：磁盘上什么都没变，只把作品状态退回上一次落盘时的样子。</summary>
     public DraftMeta ReloadMeta(string title) => LoadMeta(title) ?? throw new InvalidOperationException($"作品 {title} 的 meta.json 读不到。");
 
+    /// <summary>有多少部作品的记录里还引用着这篇范文（删范文前提醒用）。</summary>
+    public int CountCorpusReferences(string fileName)
+    {
+        if (!Directory.Exists(_ws.DraftsDir))
+        {
+            return 0;
+        }
+
+        var count = 0;
+
+        foreach (var dir in Directory.EnumerateDirectories(_ws.DraftsDir))
+        {
+            var meta = JsonStore.Read<DraftMeta>(Path.Combine(dir, "meta.json"));
+            if (meta is not null && meta.CorpusFiles.Any(f => string.Equals(f, fileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// 范文改了名，把作品的 meta.json 里对它的引用一起改掉。
+    /// 不做这一步的话，以后打开老稿会发现当初用的范文"不见了"。
+    /// 返回改了几部作品。
+    /// </summary>
+    public int ReplaceCorpusReference(string oldFileName, string newFileName)
+    {
+        if (!Directory.Exists(_ws.DraftsDir))
+        {
+            return 0;
+        }
+
+        var changed = 0;
+
+        foreach (var dir in Directory.EnumerateDirectories(_ws.DraftsDir))
+        {
+            var metaPath = Path.Combine(dir, "meta.json");
+            var meta = JsonStore.Read<DraftMeta>(metaPath);
+            if (meta is null)
+            {
+                continue;
+            }
+
+            var hit = false;
+            for (var i = 0; i < meta.CorpusFiles.Count; i++)
+            {
+                if (string.Equals(meta.CorpusFiles[i], oldFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    meta.CorpusFiles[i] = newFileName;
+                    hit = true;
+                }
+            }
+
+            if (hit)
+            {
+                JsonStore.Write(metaPath, meta);
+                changed++;
+            }
+        }
+
+        return changed;
+    }
+
     // ---- 内部工具 ----
 
     /// <summary>写版本文件。文件已存在就抛错——这是底稿不可变红线的最后一道闸。</summary>

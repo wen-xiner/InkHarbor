@@ -66,6 +66,13 @@
                 <Setter Property="FontSize" Value="13" />
             </Style>
 
+            <!-- 左栏那种窄条里的迷你按钮：更小的内边距、允许换行。 -->
+            <Style x:Key="MiniButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="Padding" Value="7,3" />
+                <Setter Property="Margin" Value="0,0,5,5" />
+            </Style>
+
             <Style TargetType="TextBox">
                 <Setter Property="Background" Value="{StaticResource BgPrimary}" />
                 <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />

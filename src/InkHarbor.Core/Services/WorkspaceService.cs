@@ -31,6 +31,12 @@ public sealed class WorkspaceService
     /// <summary>终稿封存。</summary>
     public string FinalDir => Path.Combine(Root, "final");
 
+    /// <summary>缓存（范文的嵌入向量等），删了会自动重建。</summary>
+    public string CacheDir => Path.Combine(Root, "cache");
+
+    /// <summary>范文的回收站。软件里"删除"范文只是移到这儿，用户随时能捞回来。</summary>
+    public string CorpusTrashDir => Path.Combine(CorpusDir, "_trash");
+
     private static string ResolveRoot(string? explicitRoot)
     {
         if (!string.IsNullOrWhiteSpace(explicitRoot))
@@ -56,13 +62,18 @@ public sealed class WorkspaceService
         return DefaultRoot;
     }
 
-    /// <summary>启动时保证四个目录都在。用户可能在资源管理器里删过。</summary>
+    /// <summary>
+    /// 启动时保证目录都在。用户可能在资源管理器里删过。
+    /// 注意 <see cref="CorpusTrashDir"/> 不在这里建——没删过范文就不该在 corpus 里
+    /// 凭空多出一个文件夹，改成第一次删除时按需创建。
+    /// </summary>
     public void EnsureDirectories()
     {
         Directory.CreateDirectory(CorpusDir);
         Directory.CreateDirectory(PresetsDir);
         Directory.CreateDirectory(DraftsDir);
         Directory.CreateDirectory(FinalDir);
+        Directory.CreateDirectory(CacheDir);
     }
 
     /// <summary>把标题清成合法目录名，去掉路径非法字符并裁掉首尾空白和点。</summary>

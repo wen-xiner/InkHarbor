@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Windows;
 using InkHarbor.App.Views;
@@ -28,11 +30,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly DraftService _draftService;
     private readonly PresetService _presetService;
     private readonly OllamaClient _ollama;
+    private readonly EmbeddingService _embedding;
 
     private CancellationTokenSource? _generationCts;
     private CancellationTokenSource? _reviseCts;
+    private CancellationTokenSource? _suggestCts;
     private bool _isLoading;
     private bool _titleTouched;
+
+    private CorpusItemViewModel? _selectedCorpus;
+    private PresetItemViewModel? _selectedPreset;
+    private string _suggestResultText = "";
+    private bool _isSuggesting;
+    private bool _canUndoSuggest;
+
+    /// <summary>点推荐之前的配方，供「撤销」用。</summary>
+    private readonly List<string> _recipeBeforeSuggest = new();
 
     private string _reviseInstruction = "";
     private string _revisionText = "";
@@ -72,6 +85,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _draftService = new DraftService(_workspace);
         _presetService = new PresetService(_workspace);
         _ollama = new OllamaClient();
+        _embedding = new EmbeddingService(_workspace);
 
         RefreshCommand = new RelayCommand(_ => _ = RefreshAllAsync());
         RemoveChipCommand = new RelayCommand(p => RemoveChip(p as ChipViewModel));
@@ -91,6 +105,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DiscardRevisionCommand = new RelayCommand(_ => DiscardRevision(), _ => HasRevision);
         RevertVersionCommand = new RelayCommand(_ => RevertVersion(), _ => CanRevert);
 
+        // ---- M3：范文推荐 / 范文库管理 / 预设管理 ----
+        SuggestCorpusCommand = new RelayCommand(_ => _ = SuggestCorpusAsync(), _ => CanSuggest);
+        CancelSuggestCommand = new RelayCommand(_ => _suggestCts?.Cancel());
+        UndoSuggestCommand = new RelayCommand(_ => UndoSuggest(), _ => CanUndoSuggest);
+        NewCorpusCommand = new RelayCommand(_ => NewCorpus());
+        EditCorpusCommand = new RelayCommand(_ => EditCorpus(), _ => SelectedCorpus is not null);
+        RenameCorpusCommand = new RelayCommand(_ => RenameCorpus(), _ => SelectedCorpus is not null);
+        DeleteCorpusCommand = new RelayCommand(_ => DeleteCorpus(), _ => SelectedCorpus is not null);
+        OpenCorpusFolderCommand = new RelayCommand(_ => OpenCorpusFolder());
+        ApplyPresetCommand = new RelayCommand(_ => ApplyPreset(), _ => SelectedPreset is not null);
+        RenamePresetCommand = new RelayCommand(_ => RenamePreset(), _ => SelectedPreset is not null);
+        OverwritePresetCommand = new RelayCommand(_ => OverwritePreset(), _ => SelectedPreset is not null);
+        DeletePresetCommand = new RelayCommand(_ => DeletePreset(), _ => SelectedPreset is not null);
+
         _ = RefreshAllAsync();
     }
 
@@ -106,6 +134,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>版本历史，新的在上面。</summary>
     public ObservableCollection<VersionItemViewModel> Versions { get; } = new();
+
+    /// <summary>配方预设。</summary>
+    public ObservableCollection<PresetItemViewModel> Presets { get; } = new();
 
     // ---- 命令 ----
 
@@ -138,6 +169,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand DiscardRevisionCommand { get; }
 
     public RelayCommand RevertVersionCommand { get; }
+
+    // ---- M3 ----
+
+    public RelayCommand SuggestCorpusCommand { get; }
+
+    public RelayCommand CancelSuggestCommand { get; }
+
+    public RelayCommand UndoSuggestCommand { get; }
+
+    public RelayCommand NewCorpusCommand { get; }
+
+    public RelayCommand EditCorpusCommand { get; }
+
+    public RelayCommand RenameCorpusCommand { get; }
+
+    public RelayCommand DeleteCorpusCommand { get; }
+
+    public RelayCommand OpenCorpusFolderCommand { get; }
+
+    public RelayCommand ApplyPresetCommand { get; }
+
+    public RelayCommand RenamePresetCommand { get; }
+
+    public RelayCommand OverwritePresetCommand { get; }
+
+    public RelayCommand DeletePresetCommand { get; }
 
     // ---- 属性 ----
 
@@ -253,11 +310,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 OnPropertyChanged(nameof(IsIdle));
                 GenerateCommand.RaiseCanExecuteChanged();
+                SuggestCorpusCommand.RaiseCanExecuteChanged();
             }
         }
     }
 
-    public bool IsIdle => !IsGenerating && !IsRevising;
+    public bool IsIdle => !IsGenerating && !IsRevising && !IsSuggesting;
 
     /// <summary>「展开修改」那块面板的开合。</summary>
     public bool IsEditPanelOpen
@@ -342,6 +400,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 OnPropertyChanged(nameof(IsIdle));
                 RaiseReviseState();
+                SuggestCorpusCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -419,6 +478,83 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             ? "这已经就是当前版本。"
             : $"回退＝把 v{SelectedVersion.Number} 的内容复制成一个新版本，历史一个都不删。";
 
+    // ---- M3：按大纲推荐范文 ----
+
+    /// <summary>生成 / 修订 / 正在推荐时不给点，避免几路抢占同一个 Ollama。</summary>
+    private bool CanSuggest => !IsSuggesting && !IsGenerating && !IsRevising;
+
+    public bool IsSuggesting
+    {
+        get => _isSuggesting;
+        private set
+        {
+            if (SetProperty(ref _isSuggesting, value))
+            {
+                OnPropertyChanged(nameof(IsIdle));
+                SuggestCorpusCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>推荐结果那一行（相似度、进度、缺模型的提示都写这儿）。</summary>
+    public string SuggestResultText
+    {
+        get => _suggestResultText;
+        private set
+        {
+            if (SetProperty(ref _suggestResultText, value))
+            {
+                OnPropertyChanged(nameof(HasSuggestResult));
+            }
+        }
+    }
+
+    public bool HasSuggestResult => _suggestResultText.Length > 0;
+
+    /// <summary>上一轮推荐还能不能撤销。</summary>
+    public bool CanUndoSuggest
+    {
+        get => _canUndoSuggest;
+        private set
+        {
+            if (SetProperty(ref _canUndoSuggest, value))
+            {
+                UndoSuggestCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    // ---- M3：范文库 / 预设的选中项 ----
+
+    public CorpusItemViewModel? SelectedCorpus
+    {
+        get => _selectedCorpus;
+        set
+        {
+            if (SetProperty(ref _selectedCorpus, value))
+            {
+                EditCorpusCommand.RaiseCanExecuteChanged();
+                RenameCorpusCommand.RaiseCanExecuteChanged();
+                DeleteCorpusCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public PresetItemViewModel? SelectedPreset
+    {
+        get => _selectedPreset;
+        set
+        {
+            if (SetProperty(ref _selectedPreset, value))
+            {
+                ApplyPresetCommand.RaiseCanExecuteChanged();
+                RenamePresetCommand.RaiseCanExecuteChanged();
+                OverwritePresetCommand.RaiseCanExecuteChanged();
+                DeletePresetCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
     // ---- 刷新 ----
 
     private async Task RefreshAllAsync()
@@ -428,18 +564,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             _workspace.EnsureDirectories();
 
-            var selectedBefore = Recipe.Select(c => c.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            CorpusItems.Clear();
-            foreach (var file in _corpusService.Scan())
-            {
-                var vm = new CorpusItemViewModel(file, OnCorpusToggled);
-                CorpusItems.Add(vm);
-                vm.IsSelected = selectedBefore.Contains(file.FileName);
-            }
-
-            SyncRecipe();
+            ReloadCorpus();
             RefreshDrafts();
+            RefreshPresets();
 
             IsOllamaConnected = await _ollama.PingAsync();
 
@@ -491,6 +618,53 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 SelectedDraft = same;
             }
+        }
+    }
+
+    /// <summary>
+    /// 重扫范文库。默认按当前配方里记着的文件名恢复勾选；
+    /// 传了 <paramref name="selectNames"/> 就按它来（改名那种"名字变了但还想保持勾选"的场景用）。
+    /// </summary>
+    private void ReloadCorpus(IReadOnlyCollection<string>? selectNames = null)
+    {
+        // 注意：要在清空列表之前先把配方读出来，配方条是唯一可靠的勾选记录。
+        var wanted = selectNames is null
+            ? Recipe.Select(c => c.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(selectNames, StringComparer.OrdinalIgnoreCase);
+
+        var wasLoading = _isLoading;
+        _isLoading = true;
+        try
+        {
+            CorpusItems.Clear();
+            foreach (var file in _corpusService.Scan())
+            {
+                var vm = new CorpusItemViewModel(file, OnCorpusToggled);
+                CorpusItems.Add(vm);
+                vm.IsSelected = wanted.Contains(file.FileName);
+            }
+        }
+        finally
+        {
+            _isLoading = wasLoading;
+        }
+
+        SyncRecipe();
+    }
+
+    private void RefreshPresets()
+    {
+        var keep = SelectedPreset?.Name;
+
+        Presets.Clear();
+        foreach (var preset in _presetService.LoadAll())
+        {
+            Presets.Add(new PresetItemViewModel(preset));
+        }
+
+        if (keep is not null)
+        {
+            SelectedPreset = Presets.FirstOrDefault(p => p.Name == keep);
         }
     }
 
@@ -566,7 +740,395 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         _presetService.Save(name.Trim(), Recipe.Select(c => c.FileName));
-        StatusMessage = $"预设「{name.Trim()}」已存进 presets\\。";
+        RefreshPresets();
+        SelectedPreset = Presets.FirstOrDefault(p => p.Name == name.Trim());
+        StatusMessage = $"预设「{name.Trim()}」已存进 presets\\，左栏「预设」页签里能改名、覆盖、删掉。";
+    }
+
+    // ---- M3：按大纲推荐范文 ----
+
+    private async Task SuggestCorpusAsync()
+    {
+        if (IsSuggesting)
+        {
+            return;
+        }
+
+        if (!IsOllamaConnected)
+        {
+            Warn("Ollama 没连上（localhost:11434）。推荐要靠本机算向量，不接任何云端。");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Outline))
+        {
+            Warn("先写情节大纲——推荐是照着大纲去找文风的。");
+            return;
+        }
+
+        if (CorpusItems.Count == 0)
+        {
+            Warn("范文库是空的。先往 corpus\\ 里放几篇，或者点「新建范文」。");
+            return;
+        }
+
+        const string model = EmbeddingService.DefaultModel;
+
+        _suggestCts = new CancellationTokenSource();
+        IsSuggesting = true;
+        SuggestResultText = "准备中…";
+
+        try
+        {
+            if (!await _embedding.IsModelReadyAsync(model, _suggestCts.Token))
+            {
+                SuggestResultText = $"缺嵌入模型 {model}：先在终端跑 ollama pull {model}";
+                Warn($"Ollama 里没有嵌入模型「{model}」。\n\n先在终端跑一条：\n    ollama pull {model}\n\n"
+                     + "装好之后点顶栏「刷新」，再回来点推荐。");
+                return;
+            }
+
+            var files = CorpusItems.Select(c => c.File).ToList();
+            var progress = new Progress<string>(text => SuggestResultText = text);
+
+            var suggestions = await _embedding.SuggestAsync(
+                model,
+                files,
+                _corpusService.ReadText,
+                Outline,
+                RecipeCountRecommend,
+                progress,
+                _suggestCts.Token);
+
+            if (suggestions.Count == 0)
+            {
+                SuggestResultText = "没能推荐出结果。";
+                Warn("没推荐出结果。检查一下范文库里是不是没有正文。");
+                return;
+            }
+
+            // 记下当前配方，供「撤销」回到推荐之前。
+            _recipeBeforeSuggest.Clear();
+            _recipeBeforeSuggest.AddRange(Recipe.Select(c => c.FileName));
+            CanUndoSuggest = true;
+
+            var picked = suggestions.Select(s => s.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _isLoading = true;
+            foreach (var item in CorpusItems)
+            {
+                item.IsSelected = picked.Contains(item.File.FileName);
+            }
+
+            _isLoading = false;
+            SyncRecipe();
+
+            var detail = string.Join(" ｜ ", suggestions.Select(s => $"{s.DisplayName} {s.Score:F3}"));
+            SuggestResultText = $"推荐 {suggestions.Count} 篇：{detail}";
+            StatusMessage = $"已照大纲换成本次配方（{suggestions.Count} 篇）。不满意点「撤销」，或者手动勾几下。";
+        }
+        catch (OperationCanceledException)
+        {
+            SuggestResultText = "已取消。";
+            StatusMessage = "已取消推荐，配方没动。";
+        }
+        catch (Exception ex)
+        {
+            SuggestResultText = "推荐失败。";
+            Warn("推荐失败：" + ex.Message);
+        }
+        finally
+        {
+            IsSuggesting = false;
+            _suggestCts?.Dispose();
+            _suggestCts = null;
+        }
+    }
+
+    private void UndoSuggest()
+    {
+        if (!CanUndoSuggest)
+        {
+            return;
+        }
+
+        var wanted = new HashSet<string>(_recipeBeforeSuggest, StringComparer.OrdinalIgnoreCase);
+        _isLoading = true;
+        foreach (var item in CorpusItems)
+        {
+            item.IsSelected = wanted.Contains(item.File.FileName);
+        }
+
+        _isLoading = false;
+        SyncRecipe();
+
+        CanUndoSuggest = false;
+        SuggestResultText = "";
+        StatusMessage = "已把配方恢复成推荐之前的样子。";
+    }
+
+    // ---- M3：范文库管理 ----
+
+    private void NewCorpus()
+    {
+        var window = CorpusEditWindow.ForCreate();
+        if (window.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var file = _corpusService.Create(window.FileDisplayName, window.BodyText, window.FileExtension);
+            ReloadCorpus();
+            SelectedCorpus = FindCorpusItem(file.FileName);
+            StatusMessage = $"已新增范文 {file.FileName}（{file.WordCount} 字，约 {file.EstimatedTokens} token）。";
+        }
+        catch (Exception ex)
+        {
+            Warn("新建失败：" + ex.Message);
+        }
+    }
+
+    private void EditCorpus()
+    {
+        if (SelectedCorpus is null)
+        {
+            Warn("先在列表里点一篇范文。");
+            return;
+        }
+
+        var file = SelectedCorpus.File;
+
+        try
+        {
+            var window = CorpusEditWindow.ForEdit(file, _corpusService.ReadText(file));
+            if (window.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var saved = _corpusService.SaveText(file, window.BodyText);
+            ReloadCorpus();
+            SelectedCorpus = FindCorpusItem(saved.FileName);
+            StatusMessage = $"已保存 {saved.FileName}（{saved.WordCount} 字）。它的向量下次推荐时自动重算。";
+        }
+        catch (Exception ex)
+        {
+            Warn("保存失败：" + ex.Message);
+        }
+    }
+
+    private void RenameCorpus()
+    {
+        if (SelectedCorpus is null)
+        {
+            Warn("先在列表里点一篇范文。");
+            return;
+        }
+
+        var file = SelectedCorpus.File;
+        var newName = InputDialog.Show(
+            "重命名范文",
+            "文件名就是标签，改这里等于改标签。不用带扩展名：",
+            file.DisplayName);
+
+        if (newName is null || newName == file.DisplayName)
+        {
+            return;
+        }
+
+        try
+        {
+            var renamed = _corpusService.Rename(file, newName);
+            var touched = _draftService.ReplaceCorpusReference(file.FileName, renamed.FileName);
+
+            // 文件名变了，配方里的勾选得跟着搬过去，否则配方会莫名其妙少一篇。
+            var keep = Recipe
+                .Select(c => c.FileName.Equals(file.FileName, StringComparison.OrdinalIgnoreCase)
+                    ? renamed.FileName
+                    : c.FileName)
+                .ToList();
+
+            ReloadCorpus(keep);
+            SelectedCorpus = FindCorpusItem(renamed.FileName);
+
+            StatusMessage = touched == 0
+                ? $"已改名为 {renamed.FileName}。"
+                : $"已改名为 {renamed.FileName}，同时帮 {touched} 部作品更新了引用记录。";
+        }
+        catch (Exception ex)
+        {
+            Warn("重命名失败：" + ex.Message);
+        }
+    }
+
+    private void DeleteCorpus()
+    {
+        if (SelectedCorpus is null)
+        {
+            Warn("先在列表里点一篇范文。");
+            return;
+        }
+
+        var file = SelectedCorpus.File;
+        var referenced = _draftService.CountCorpusReferences(file.FileName);
+
+        var message = $"把「{file.DisplayName}」移出范文库？\n\n"
+                      + "不是真删——会移到 corpus\\_trash\\ 里，你随时能去那儿捞回来。";
+
+        if (referenced > 0)
+        {
+            message += $"\n\n有 {referenced} 部作品的记录里引用过它。那些老稿子本身不受影响，"
+                       + "只是以后打开时会少勾这一篇。";
+        }
+
+        var answer = MessageBox.Show(message, "移出范文库", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            _corpusService.SoftDelete(file);
+            ReloadCorpus();
+            SelectedCorpus = null;
+            StatusMessage = $"已把 {file.FileName} 移到 corpus\\_trash\\。想恢复就去那儿拖回来再点「刷新」。";
+        }
+        catch (Exception ex)
+        {
+            Warn("移出失败：" + ex.Message);
+        }
+    }
+
+    private void OpenCorpusFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(_workspace.CorpusDir);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = _workspace.CorpusDir,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Warn("打不开文件夹：" + ex.Message);
+        }
+    }
+
+    private CorpusItemViewModel? FindCorpusItem(string fileName) =>
+        CorpusItems.FirstOrDefault(c => c.File.FileName.Equals(fileName, StringComparison.OrdinalIgnoreCase));
+
+    // ---- M3：预设管理 ----
+
+    private void ApplyPreset()
+    {
+        if (SelectedPreset is null)
+        {
+            Warn("先在列表里点一个预设。");
+            return;
+        }
+
+        var wanted = SelectedPreset.CorpusFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missing = SelectedPreset.CorpusFiles.Count(name =>
+            CorpusItems.All(c => !c.File.FileName.Equals(name, StringComparison.OrdinalIgnoreCase)));
+
+        _isLoading = true;
+        foreach (var item in CorpusItems)
+        {
+            item.IsSelected = wanted.Contains(item.File.FileName);
+        }
+
+        _isLoading = false;
+        SyncRecipe();
+
+        CanUndoSuggest = false;
+        StatusMessage = missing == 0
+            ? $"已套用预设「{SelectedPreset.Name}」（{SelectedPreset.CorpusFiles.Count} 篇）。"
+            : $"已套用预设「{SelectedPreset.Name}」，其中 {missing} 篇在库里找不到了（可能被改名或移走）。";
+    }
+
+    private void RenamePreset()
+    {
+        if (SelectedPreset is null)
+        {
+            Warn("先在列表里点一个预设。");
+            return;
+        }
+
+        var oldName = SelectedPreset.Name;
+        var newName = InputDialog.Show("重命名预设", "新名字：", oldName);
+        if (newName is null || newName == oldName)
+        {
+            return;
+        }
+
+        try
+        {
+            var renamed = _presetService.Rename(oldName, newName);
+            RefreshPresets();
+            SelectedPreset = Presets.FirstOrDefault(p => p.Name == renamed.Name);
+            StatusMessage = $"预设「{oldName}」已改名为「{renamed.Name}」。";
+        }
+        catch (Exception ex)
+        {
+            Warn("改名失败：" + ex.Message);
+        }
+    }
+
+    private void OverwritePreset()
+    {
+        if (SelectedPreset is null)
+        {
+            Warn("先在列表里点一个预设。");
+            return;
+        }
+
+        if (Recipe.Count == 0)
+        {
+            Warn("当前配方是空的，没法覆盖。");
+            return;
+        }
+
+        var name = SelectedPreset.Name;
+        var answer = MessageBox.Show(
+            $"用当前配方（{Recipe.Count} 篇）覆盖预设「{name}」？\n\n只动这个预设文件，范文和稿子都不受影响。",
+            "覆盖预设", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+
+        if (answer != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        _presetService.Save(name, Recipe.Select(c => c.FileName));
+        RefreshPresets();
+        SelectedPreset = Presets.FirstOrDefault(p => p.Name == name);
+        StatusMessage = $"预设「{name}」已用当前配方覆盖。";
+    }
+
+    private void DeletePreset()
+    {
+        if (SelectedPreset is null)
+        {
+            Warn("先在列表里点一个预设。");
+            return;
+        }
+
+        var name = SelectedPreset.Name;
+        var answer = MessageBox.Show(
+            $"删掉预设「{name}」？\n\n只删这条配方记录，范文和稿子都不动。",
+            "删除预设", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+
+        if (answer != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        _presetService.Delete(name);
+        RefreshPresets();
+        StatusMessage = $"预设「{name}」已删除。";
     }
 
     // ---- 生成 ----
@@ -1212,6 +1774,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _generationCts?.Dispose();
         _reviseCts?.Cancel();
         _reviseCts?.Dispose();
+        _suggestCts?.Cancel();
+        _suggestCts?.Dispose();
+        _embedding.Dispose();
         _ollama.Dispose();
     }
 }

@@ -111,6 +111,7 @@
                                 </Grid.RowDefinitions>
 
                                 <ListBox x:Name="CorpusList" ItemsSource="{Binding CorpusItems}"
+                                         SelectedItem="{Binding SelectedCorpus, Mode=TwoWay}"
                                          MouseDoubleClick="CorpusList_MouseDoubleClick">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
@@ -139,9 +140,70 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
 
-                                <TextBlock Grid.Row="1" FontSize="11" Foreground="{StaticResource TextTertiary}"
-                                           TextWrapping="Wrap" LineHeight="17" Margin="0,10,0,0"
-                                           Text="勾选进右侧配方条；双击看整篇预览。" />
+                                <StackPanel Grid.Row="1" Margin="0,10,0,0">
+                                    <WrapPanel>
+                                        <Button Content="打开文件夹" Style="{StaticResource MiniButton}"
+                                                Command="{Binding OpenCorpusFolderCommand}" />
+                                        <Button Content="新建" Style="{StaticResource MiniButton}"
+                                                Command="{Binding NewCorpusCommand}" />
+                                        <Button Content="编辑" Style="{StaticResource MiniButton}"
+                                                Command="{Binding EditCorpusCommand}" />
+                                        <Button Content="改名" Style="{StaticResource MiniButton}"
+                                                Command="{Binding RenameCorpusCommand}" />
+                                        <Button Content="移出" Style="{StaticResource MiniButton}"
+                                                Command="{Binding DeleteCorpusCommand}" />
+                                    </WrapPanel>
+                                    <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                               TextWrapping="Wrap" LineHeight="17" Margin="0,6,0,0"
+                                               Text="勾选进右侧配方条；双击看整篇预览。选中一条后可编辑、改名、移出（移到 corpus\_trash\，能手动找回）。" />
+                                </StackPanel>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="预设">
+                            <Grid Margin="0,8,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <ListBox x:Name="PresetList" ItemsSource="{Binding Presets}"
+                                         SelectedItem="{Binding SelectedPreset, Mode=TwoWay}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource BgPrimary}"
+                                                    BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0.5"
+                                                    CornerRadius="8" Padding="8,6">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding MetaLine}" FontSize="11"
+                                                               Foreground="{StaticResource TextTertiary}"
+                                                               Margin="0,2,0,0" />
+                                                    <TextBlock Text="{Binding PreviewText}" FontSize="11"
+                                                               Foreground="{StaticResource TextTertiary}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <StackPanel Grid.Row="1" Margin="0,10,0,0">
+                                    <WrapPanel>
+                                        <Button Content="应用" Style="{StaticResource MiniButton}"
+                                                Command="{Binding ApplyPresetCommand}" />
+                                        <Button Content="改名" Style="{StaticResource MiniButton}"
+                                                Command="{Binding RenamePresetCommand}" />
+                                        <Button Content="覆盖" Style="{StaticResource MiniButton}"
+                                                Command="{Binding OverwritePresetCommand}" />
+                                        <Button Content="删除" Style="{StaticResource MiniButton}"
+                                                Command="{Binding DeletePresetCommand}" />
+                                    </WrapPanel>
+                                    <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                               TextWrapping="Wrap" LineHeight="17" Margin="0,6,0,0"
+                                               Text="「应用」把这条配方填回右侧配方条；「覆盖」＝用现在勾的几篇替换掉它。" />
+                                </StackPanel>
                             </Grid>
                         </TabItem>
 
@@ -201,8 +263,17 @@
 
                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                 <Button Content="+ 存为预设" Command="{Binding SavePresetCommand}" />
-                                <Button Content="按大纲自动推荐（M3）" IsEnabled="False" />
+                                <Button Content="按大纲自动推荐" Command="{Binding SuggestCorpusCommand}" />
+                                <Button Content="终止" Command="{Binding CancelSuggestCommand}"
+                                        Visibility="{Binding IsSuggesting, Converter={StaticResource BoolToVis}}" />
+                                <Button Content="撤销推荐" Command="{Binding UndoSuggestCommand}"
+                                        Visibility="{Binding CanUndoSuggest, Converter={StaticResource BoolToVis}}" />
                             </StackPanel>
+
+                            <TextBlock Text="{Binding SuggestResultText}" FontSize="11"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       TextWrapping="Wrap" Margin="0,6,0,0"
+                                       Visibility="{Binding HasSuggestResult, Converter={StaticResource BoolToVis}}" />
 
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>

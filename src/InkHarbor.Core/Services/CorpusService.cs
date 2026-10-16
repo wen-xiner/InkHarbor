@@ -1,3 +1,4 @@
+using System.Text;
 using InkHarbor.Core.Models;
 
 namespace InkHarbor.Core.Services;
@@ -8,6 +9,7 @@ namespace InkHarbor.Core.Services;
 public sealed class CorpusService
 {
     private static readonly string[] Extensions = { "*.md", "*.txt" };
+    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     private readonly WorkspaceService _ws;
 
@@ -48,6 +50,97 @@ public sealed class CorpusService
     /// <summary>按文件名找一篇，找不到返回 null。</summary>
     public CorpusFile? Find(string fileName) =>
         Scan().FirstOrDefault(f => string.Equals(f.FileName, fileName, StringComparison.OrdinalIgnoreCase));
+
+    // ---- 库管理（M3） ----
+
+    /// <summary>新建一篇范文。重名直接抛错，不覆盖。</summary>
+    public CorpusFile Create(string displayName, string text, string extension = ".md")
+    {
+        var name = WorkspaceService.SanitizeTitle(displayName);
+        var ext = NormalizeExtension(extension);
+        var path = Path.Combine(_ws.CorpusDir, name + ext);
+
+        if (File.Exists(path))
+        {
+            throw new IOException($"范文库里已经有「{name + ext}」了。换个名字，或者直接改那一篇。");
+        }
+
+        Directory.CreateDirectory(_ws.CorpusDir);
+        File.WriteAllText(path, text, Utf8NoBom);
+        return Build(path);
+    }
+
+    /// <summary>改一篇范文的正文。文件名（也就是标签）不动。</summary>
+    public CorpusFile SaveText(CorpusFile file, string text)
+    {
+        File.WriteAllText(file.FullPath, text, Utf8NoBom);
+        return Build(file.FullPath);
+    }
+
+    /// <summary>
+    /// 改标签其实就是改文件名。
+    /// 注意：作品 meta.json 里的 corpusFiles 记的是文件名，调用方还得去
+    /// <see cref="DraftService.ReplaceCorpusReference"/> 把老作品的引用一起改掉。
+    /// </summary>
+    public CorpusFile Rename(CorpusFile file, string newDisplayName)
+    {
+        var name = WorkspaceService.SanitizeTitle(newDisplayName);
+        var ext = Path.GetExtension(file.FileName);
+        var target = Path.Combine(_ws.CorpusDir, name + ext);
+
+        if (string.Equals(target, file.FullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return file;
+        }
+
+        if (File.Exists(target))
+        {
+            throw new IOException($"范文库里已经有「{name + ext}」了。");
+        }
+
+        File.Move(file.FullPath, target);
+        return Build(target);
+    }
+
+    /// <summary>
+    /// 软删除：移到 corpus\_trash\ 里，不是真删。同名就加序号。
+    /// 这样软件里点错了还能自己去捞回来。
+    /// </summary>
+    public string SoftDelete(CorpusFile file)
+    {
+        Directory.CreateDirectory(_ws.CorpusTrashDir);
+
+        var target = MakeUniquePath(
+            _ws.CorpusTrashDir,
+            Path.GetFileNameWithoutExtension(file.FileName),
+            Path.GetExtension(file.FileName));
+
+        File.Move(file.FullPath, target);
+        return target;
+    }
+
+    private static string NormalizeExtension(string extension)
+    {
+        var ext = string.IsNullOrWhiteSpace(extension) ? ".md" : extension.Trim();
+        if (!ext.StartsWith('.'))
+        {
+            ext = "." + ext;
+        }
+
+        return ext.Equals(".txt", StringComparison.OrdinalIgnoreCase) ? ".txt" : ".md";
+    }
+
+    private static string MakeUniquePath(string dir, string baseName, string ext)
+    {
+        var candidate = Path.Combine(dir, baseName + ext);
+        var n = 2;
+        while (File.Exists(candidate))
+        {
+            candidate = Path.Combine(dir, $"{baseName} ({n++}){ext}");
+        }
+
+        return candidate;
+    }
 
     private static CorpusFile Build(string path)
     {

@@ -63,6 +63,42 @@ public sealed class PresetService
         }
     }
 
+    /// <summary>给预设改名。目标名已被占用就抛错，不覆盖别人。</summary>
+    public Preset Rename(string oldName, string newName)
+    {
+        var from = Path.Combine(_ws.PresetsDir, SanitizeName(oldName) + ".json");
+        if (!File.Exists(from))
+        {
+            throw new IOException($"预设「{oldName}」已经不在了。");
+        }
+
+        var clean = SanitizeName(newName);
+        var to = Path.Combine(_ws.PresetsDir, clean + ".json");
+
+        var preset = JsonStore.Read<Preset>(from) ?? new Preset { Name = clean };
+        preset.Name = clean;
+
+        if (string.Equals(from, to, StringComparison.OrdinalIgnoreCase))
+        {
+            JsonStore.Write(from, preset);
+            return preset;
+        }
+
+        if (File.Exists(to))
+        {
+            throw new IOException($"已经有叫「{clean}」的预设了，换个名字。");
+        }
+
+        // 先写新的再删老的，写挂了至少老预设还在。
+        JsonStore.Write(to, preset);
+        File.Delete(from);
+        return preset;
+    }
+
+    /// <summary>这个预设还在不在。</summary>
+    public bool Exists(string name) =>
+        File.Exists(Path.Combine(_ws.PresetsDir, SanitizeName(name) + ".json"));
+
     private static string SanitizeName(string name)
     {
         var clean = WorkspaceService.SanitizeTitle(name);

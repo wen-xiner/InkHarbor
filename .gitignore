@@ -15,9 +15,13 @@ _setup/
 ## 数据目录里的正文不进库（范文/底稿/终稿是自己的东西，按需再决定要不要传）
 corpus/*.md
 corpus/*.txt
+corpus/_trash/
 drafts/
 final/
 presets/*.json
+
+## 派生缓存（范文向量），删了会自动重建，不是数据
+cache/
 
 ## AI 协作笔记（.workbuddy 是本机工作记录，不进库）
 .workbuddy/
