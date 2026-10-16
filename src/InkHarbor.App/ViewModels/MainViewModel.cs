@@ -43,6 +43,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _suggestResultText = "";
     private bool _isSuggesting;
     private bool _canUndoSuggest;
+    private string _finalsHeaderText = "终稿（还没有）";
 
     /// <summary>点推荐之前的配方，供「撤销」用。</summary>
     private readonly List<string> _recipeBeforeSuggest = new();
@@ -119,6 +120,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OverwritePresetCommand = new RelayCommand(_ => OverwritePreset(), _ => SelectedPreset is not null);
         DeletePresetCommand = new RelayCommand(_ => DeletePreset(), _ => SelectedPreset is not null);
 
+        // ---- 终稿浏览入口 ----
+        OpenFinalFolderCommand = new RelayCommand(_ => OpenFinalFolder());
+
         _ = RefreshAllAsync();
     }
 
@@ -137,6 +141,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>配方预设。</summary>
     public ObservableCollection<PresetItemViewModel> Presets { get; } = new();
+
+    /// <summary>
+    /// final\ 里已封存的终稿，新的在上面。
+    /// 这里直接放 Core 的 <see cref="FinalFile"/>，不再包一层 VM ——
+    /// 终稿是只读快照，不需要 Brush、勾选这类界面态。
+    /// </summary>
+    public ObservableCollection<FinalFile> Finals { get; } = new();
 
     // ---- 命令 ----
 
@@ -195,6 +206,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand OverwritePresetCommand { get; }
 
     public RelayCommand DeletePresetCommand { get; }
+
+    // ---- 终稿浏览入口 ----
+
+    public RelayCommand OpenFinalFolderCommand { get; }
 
     // ---- 属性 ----
 
@@ -511,6 +526,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool HasSuggestResult => _suggestResultText.Length > 0;
 
+    // ---- 终稿浏览入口 ----
+
+    /// <summary>终稿区标题行文案，跟着 <see cref="Finals"/> 的数量走。</summary>
+    public string FinalsHeaderText
+    {
+        get => _finalsHeaderText;
+        private set => SetProperty(ref _finalsHeaderText, value);
+    }
+
+    /// <summary>final\ 里有没有东西。空的时候整块收起来，作品列表就能占满高度。</summary>
+    public bool HasFinals => Finals.Count > 0;
+
     /// <summary>上一轮推荐还能不能撤销。</summary>
     public bool CanUndoSuggest
     {
@@ -567,6 +594,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             ReloadCorpus();
             RefreshDrafts();
             RefreshPresets();
+            RefreshFinals();
 
             IsOllamaConnected = await _ollama.PingAsync();
 
@@ -666,6 +694,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             SelectedPreset = Presets.FirstOrDefault(p => p.Name == keep);
         }
+    }
+
+    /// <summary>
+    /// 重扫 final\。终稿是只读快照，没有选中态要恢复，整个换掉就行。
+    /// </summary>
+    private void RefreshFinals()
+    {
+        Finals.Clear();
+        foreach (var file in _draftService.ListFinals())
+        {
+            Finals.Add(file);
+        }
+
+        FinalsHeaderText = Finals.Count == 0 ? "终稿（还没有）" : $"终稿（{Finals.Count} 篇）";
+        OnPropertyChanged(nameof(HasFinals));
     }
 
     // ---- 配方 ----
@@ -1330,6 +1373,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DraftLabel = $"{_currentMeta.Title} · 已入终稿";
         RefreshVersions();
         RefreshDrafts();
+        RefreshFinals();
         StatusMessage = $"已存入终稿：{path}（原终稿从不覆盖，同名自动加序号）";
     }
 
@@ -1738,6 +1782,49 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             Warn("读不出这篇范文：" + ex.Message);
+        }
+    }
+
+    // ---- 终稿浏览入口 ----
+
+    /// <summary>双击终稿列表里的一条：交给系统默认程序打开，软件自己不改它。</summary>
+    public void OpenFinal(FinalFile? file)
+    {
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = file.FullPath,
+                UseShellExecute = true
+            });
+
+            StatusMessage = $"已交给系统默认程序打开：final\\{file.FileName}（软件不会改它）";
+        }
+        catch (Exception ex)
+        {
+            Warn("打不开这篇终稿：" + ex.Message);
+        }
+    }
+
+    private void OpenFinalFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(_workspace.FinalDir);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = _workspace.FinalDir,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Warn("打不开终稿文件夹：" + ex.Message);
         }
     }
 

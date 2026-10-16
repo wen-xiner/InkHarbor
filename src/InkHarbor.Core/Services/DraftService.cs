@@ -47,6 +47,35 @@ public sealed class DraftService
         return list.OrderByDescending(d => d.UpdatedAt).ToList();
     }
 
+    /// <summary>
+    /// final\ 里封存的东西，按封存时间倒序。
+    /// 只列文件本身（不递归子目录、不读正文）——final\ 是封存区，
+    /// 用户手工往里丢的文件也一并列出来，不做扩展名过滤，免得"看不见"反而费解。
+    /// </summary>
+    public IReadOnlyList<FinalFile> ListFinals()
+    {
+        var list = new List<FinalFile>();
+        if (!Directory.Exists(_ws.FinalDir))
+        {
+            return list;
+        }
+
+        foreach (var path in Directory.EnumerateFiles(_ws.FinalDir))
+        {
+            var info = new FileInfo(path);
+            list.Add(new FinalFile
+            {
+                FileName = info.Name,
+                FullPath = info.FullName,
+                DisplayName = Path.GetFileNameWithoutExtension(info.Name),
+                SizeBytes = info.Length,
+                SavedAt = new DateTimeOffset(info.LastWriteTime)
+            });
+        }
+
+        return list.OrderByDescending(f => f.SavedAt).ToList();
+    }
+
     public string DraftDir(string title) =>
         Path.Combine(_ws.DraftsDir, WorkspaceService.SanitizeTitle(title));
 

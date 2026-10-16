@@ -66,7 +66,9 @@
                         <TabItem Header="作品">
                             <Grid Margin="0,8,0,0">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" MinHeight="120" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
@@ -98,9 +100,41 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
 
-                                <TextBlock Grid.Row="1" FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                <!-- 终稿：软件里唯一的浏览入口。只读，双击交给系统程序打开。 -->
+                                <Grid Grid.Row="1" Margin="0,14,0,0">
+                                    <TextBlock Text="{Binding FinalsHeaderText}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextSecondary}"
+                                               VerticalAlignment="Center" />
+                                    <Button Content="打开文件夹" Style="{StaticResource MiniButton}"
+                                            HorizontalAlignment="Right" Margin="0"
+                                            Command="{Binding OpenFinalFolderCommand}" />
+                                </Grid>
+
+                                <ListBox x:Name="FinalList" Grid.Row="2" Margin="0,6,0,0" MaxHeight="160"
+                                         ItemsSource="{Binding Finals}"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         Visibility="{Binding HasFinals, Converter={StaticResource BoolToVis}}"
+                                         MouseDoubleClick="FinalList_MouseDoubleClick">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource BgPrimary}"
+                                                    BorderBrush="{StaticResource BorderTertiary}" BorderThickness="0.5"
+                                                    CornerRadius="8" Padding="8,6">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="12"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding MetaText}" FontSize="11"
+                                                               Foreground="{StaticResource TextTertiary}"
+                                                               Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock Grid.Row="3" FontSize="11" Foreground="{StaticResource TextTertiary}"
                                            TextWrapping="Wrap" LineHeight="17" Margin="0,10,0,0"
-                                           Text="底稿=灰 / 修改中=蓝 / 已入终稿=绿。点一条打开它。" />
+                                           Text="底稿=灰 / 修改中=蓝 / 已入终稿=绿。点一条打开它。终稿双击用系统程序看，软件只读不改。" />
                             </Grid>
                         </TabItem>
 

@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using InkHarbor.App.ViewModels;
+using InkHarbor.Core.Models;
 
 namespace InkHarbor.App;
 
@@ -39,6 +40,11 @@ public partial class MainWindow : Window
     private void CorpusList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         _vm.PreviewCorpus(CorpusList.SelectedItem as CorpusItemViewModel);
+    }
+
+    private void FinalList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        _vm.OpenFinal(FinalList.SelectedItem as FinalFile);
     }
 
     protected override void OnClosed(EventArgs e)
