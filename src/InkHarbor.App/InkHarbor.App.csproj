@@ -10,9 +10,16 @@
     <RootNamespace>InkHarbor.App</RootNamespace>
     <Product>InkHarbor</Product>
     <AssemblyTitle>InkHarbor · 墨坞</AssemblyTitle>
+    <Description>本地模型的私人写作工坊（全程离线，只连本机 Ollama）</Description>
     <Version>0.1.0</Version>
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 打包进程序集，窗口标题栏 / 任务栏也用它（Window.Icon="/app.ico"）。 -->
+    <Resource Include="app.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\InkHarbor.Core\InkHarbor.Core.csproj" />

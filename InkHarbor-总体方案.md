@@ -11,6 +11,8 @@
 2. **新增两个目录**：`cache\`（范文向量缓存，删了自动重建）、`corpus\_trash\`（范文回收站，懒创建）。
 3. **多文风模式管理缓到 LoRA 阶段**——M3 不做（理由见第七节）。
 4. 第七节的 M3 标记为**已完工**，附本机实测数据。
+5. **补发布形态**：应用图标（`app.ico`）、`dotnet publish` 两种口径（自包含单文件 121MB / 依赖运行时 400KB）、
+   项目级 `NuGet.config` 隔离机器私有源。见第九节。
 
 **v1.2 相对 v1.1 改了什么**
 
@@ -329,7 +331,12 @@ InkHarbor.sln
     └── Views\              InputDialog / CorpusPreviewWindow / CorpusEditWindow
 ```
 
-产出：`src\InkHarbor.App\bin\Debug\net9.0-windows\InkHarbor.exe`（单 exe，双击即用）。
+产出：Debug 用 `dotnet run --project src\InkHarbor.App`，或直接跑
+`src\InkHarbor.App\bin\Debug\net9.0-windows\InkHarbor.exe`。
+发布给别人用走 `dotnet publish`：**自包含单文件约 121MB**（目标机器零依赖）、
+**依赖运行时约 400KB**（目标机器需装 .NET 9 Desktop Runtime）。命令见 `README.md`「构建与发布」。
+应用图标在 `src\InkHarbor.App\app.ico`（`<ApplicationIcon>` + WPF `Resource`，标题栏/任务栏共用）。
+根目录 `NuGet.config` 只留官方源，隔离机器级的私有源配置，保证换机器能还原。
 
 ---
 

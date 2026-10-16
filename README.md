@@ -143,6 +143,47 @@ dotnet run --project src/InkHarbor.App
 
 ---
 
+## 构建与发布
+
+### 编译运行（开发用）
+
+```bash
+dotnet build InkHarbor.sln
+dotnet run --project src/InkHarbor.App
+```
+
+产物在 `src/InkHarbor.App/bin/Debug/net9.0-windows/InkHarbor.exe`。
+
+### 发布成单文件 exe
+
+按「别人的电脑上有没有 .NET 9」二选一：
+
+**① 自包含（推荐，给别人用）** —— 运行时一起打进去，双击即用，目标机器什么都不用装。
+
+```bash
+dotnet publish src/InkHarbor.App -c Release -r win-x64 --self-contained true \
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+  -o dist/selfcontained
+```
+
+产物：`dist/selfcontained/InkHarbor.exe`，**约 121 MB**（实测 125,976,606 字节）。首次启动会解压原生库到临时目录，会慢一两秒。
+
+**② 依赖运行时（体积小）** —— 只有约 **400 KB**，但目标机器得先装
+[.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)。
+
+```bash
+dotnet publish src/InkHarbor.App -c Release -r win-x64 --self-contained false \
+  -p:PublishSingleFile=true -o dist/framework-dependent
+```
+
+> - **WPF 不支持 IL 裁剪**，别加 `PublishTrimmed`，会打出跑不起来的 exe。
+> - 工作区数据不在 exe 旁边，默认仍是 `D:\Test\InkHarbor`（可用环境变量 `INKHARBOR_ROOT` 改）。
+>   所以换个位置放 exe 不影响你的稿子。
+> - **软件不带模型**。跑之前先起 Ollama（`ollama serve`）并确认模型在位，否则顶栏连接灯是灰的、生成会被拦。
+> - 仓库根目录的 `NuGet.config` 只留了官方源，保证换机器能直接 restore。
+
+---
+
 ## 关于模型选型：为什么不用原版 `qwen3:4b`
 
 这是个踩过的坑，记下来免得重蹈覆辙。

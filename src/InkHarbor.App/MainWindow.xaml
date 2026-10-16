@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:InkHarbor.App.ViewModels"
         Title="InkHarbor · 墨坞" Height="860" Width="1260" MinHeight="660" MinWidth="1060"
+        Icon="/app.ico"
         WindowStartupLocation="CenterScreen"
         Background="#FAFAFA" FontFamily="Microsoft YaHei UI, Segoe UI" FontSize="13"
         Foreground="{StaticResource TextPrimary}"

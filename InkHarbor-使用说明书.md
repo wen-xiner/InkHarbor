@@ -62,6 +62,10 @@ D:\Test\InkHarbor\src\InkHarbor.App\bin\Debug\net9.0-windows\InkHarbor.exe
 
 顶栏右上角出现绿色的 **「Ollama ● 已连接」** 就可以开工了。
 
+> **想发给别人用**：开发用的这个 exe 依赖 .NET 9，别人电脑上没有就跑不起来。
+> 要「双击即用」的那个版本，按 `README.md` 的「构建与发布」一节打一个**自包含单文件 exe**（约 121MB，目标机器什么都不用装）。
+> 换个位置放 exe 不影响数据——工作区固定认 `D:\Test\InkHarbor`（可用环境变量 `INKHARBOR_ROOT` 改）。
+
 ---
 
 ## 三、界面一眼看懂
